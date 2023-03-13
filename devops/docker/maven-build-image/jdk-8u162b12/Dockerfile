@@ -1,27 +1,23 @@
-FROM anapsix/alpine-java:8u162b12_jdk
+FROM adoptopenjdk:17-jdk-hotspot
 
 ############################# Install tools and deps #########################################
-RUN apk update && apk add --no-cache curl tar bash procps git openssh htop xmlstarlet libxslt 
+ RUN apt-get update && apt-get install -y curl tar bash procps git openssh-client htop xmlstarlet libxslt1-dev && rm -rf /var/lib/apt/lists/*
 ############################# End Install tools and deps #####################################
 
 ############################# Install Groovy ################################
 ENV GROOVY_HOME /opt/groovy
-ARG GROOVY_VERSION=2.4.15
+ARG GROOVY_VERSION=3.0.9
 
 RUN set -o errexit -o nounset && echo "Installing build dependencies" && \
-    apk add --no-cache --virtual .build-deps ca-certificates gnupg openssl unzip && \
-    echo "Downloading Groovy" && wget -O groovy.zip "https://dist.apache.org/repos/dist/release/groovy/${GROOVY_VERSION}/distribution/apache-groovy-binary-${GROOVY_VERSION}.zip" && \
-    echo "Importing keys listed in http://www.apache.org/dist/groovy/KEYS from key server" && export GNUPGHOME="$(mktemp -d)" && for key in \
-		"7FAA0F2206DE228F0DB01AD741321490758AAD6F" \
-		"331224E1D7BE883D16E8A685825C06C827AF6B66" \
-		"34441E504A937F43EB0DAEF96A65176A0FB1CD0B" \
-		"9A810E3B766E089FFB27C70F11B595CEDC4AEBB5" \
-		"81CABC23EECA0790E8989B361FF96E10F0E13706" \
+    apt-get update && apt-get install -y --no-install-recommends gnupg2 ca-certificates && \
+    echo "Downloading Groovy" && wget -O groovy.zip "https://dl.bintray.com/groovy/maven/apache-groovy-binary-${GROOVY_VERSION}.zip" && \
+    echo "Importing keys listed in https://dist.apache.org/repos/dist/release/groovy/KEYS from key server" && export GNUPGHOME="$(mktemp -d)" && for key in \
+		"602DBB08EE936C7F" \
+        "5D2C85F28F9B4859" \
 	; do \
 		for server in \
-			"ha.pool.sks-keyservers.net" \
-			"hkp://p80.pool.sks-keyservers.net:80" \
-			"pgp.mit.edu" \
+			"keyserver.ubuntu.com" \
+            "hkp://keyserver.ubuntu.com:80" \
 		; do \
 			echo "  Trying ${server}"; \
 			if gpg --keyserver "${server}" --recv-keys "${key}"; then \
@@ -34,7 +30,7 @@ RUN set -o errexit -o nounset && echo "Installing build dependencies" && \
 		exit 1; \
 	fi \
 	&& echo "Checking download signature" \
-	&& wget -O groovy.zip.asc "https://dist.apache.org/repos/dist/release/groovy/${GROOVY_VERSION}/distribution/apache-groovy-binary-${GROOVY_VERSION}.zip.asc" \
+	&& wget -O groovy.zip.asc "https://dl.bintray.com/groovy/maven/apache-groovy-binary-${GROOVY_VERSION}.zip.asc" \
 	&& gpg --batch --verify groovy.zip.asc groovy.zip && rm -rf "${GNUPGHOME}" && rm groovy.zip.asc \
 	&& echo "Installing Groovy" \
 	&& unzip groovy.zip \
@@ -48,7 +44,7 @@ RUN set -o errexit -o nounset && echo "Installing build dependencies" && \
 	&& ln -s "${GROOVY_HOME}/bin/groovydoc" /usr/bin/groovydoc \
 	&& ln -s "${GROOVY_HOME}/bin/groovysh" /usr/bin/groovysh \
 	&& ln -s "${GROOVY_HOME}/bin/java2groovy" /usr/bin/java2groovy \
-	&& echo "Cleaning up build dependencies" && apk del .build-deps \
+	&& echo "Cleaning up build dependencies" && apt-get purge -y --auto-remove gnupg2 \
 	&& echo "Symlinking root .groovy to groovy .groovy" \
 	&& ln -s /home/groovy/.groovy /root/.groovy
 ############################# End Install Groovy ################################
